@@ -42,7 +42,14 @@ url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Co
 json = requests.get(url, headers=headers).json()
 data = json['resultSets'][0]['rowSet']
 columns = json['resultSets'][0]['headers']
-df = pd.DataFrame.from_records(data, columns=columns) 
+# print(columns)
+index = []
+for player in data:
+    index.append(player[0])
+df = pd.DataFrame.from_records(data, index = index, columns=columns) 
+# df.drop(['PLAYER_ID'], axis = 1)
+# df = pd.DataFrame.from_records(data, columns=columns) 
+# print(df)
 
 # print(df)
 # for key in df.iloc[0]:
@@ -52,6 +59,7 @@ df = pd.DataFrame.from_records(data, columns=columns)
 playerStats = ['PLAYER_NAME','AGE','GP','MIN']
 gameStats = ['FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','REB','AST','TOV','STL','BLK','BLKA','PF','PFD','PTS'];
 df = df[playerStats + gameStats]
+df['POS'] = 'C'
 for stat in gameStats:
 	df[stat] = df[stat] / df.MIN * 36
 
@@ -59,11 +67,24 @@ print(df)
 
 positions = ['C', 'F', 'G']
 
-for pos in positions:
-	url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
+bah = open('output.txt', 'w')
+for thing in index:
+    bah.write(str(thing) + "\n")
+# print(df[201143])
 
-	json = requests.get(url, headers=headers).json()
-	data = json['resultSets'][0]['rowSet']
-	columns = json['resultSets'][0]['headers']
-	df_c = pd.DataFrame.from_records(data, columns=columns) 
-	print(df_c)
+for pos in positions:
+    url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
+    json = requests.get(url, headers=headers).json()
+    data = json['resultSets'][0]['rowSet']
+    columns = json['resultSets'][0]['headers']
+    pos_df = pd.DataFrame.from_records(data, columns=columns) 
+    # print(pos_df)
+    # print(pos_df['PLAYER_NAME'])
+    for player in pos_df['PLAYER_ID']:
+        # print(player)
+        df['POS'][player] = pos
+        # df[player]['POS'] = pos
+
+print(df)
+
+    
