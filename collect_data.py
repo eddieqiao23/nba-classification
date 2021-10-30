@@ -2,6 +2,8 @@ import requests
 import json
 from pprint import pprint
 import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 url_base = 'https://stats.nba.com/stats/cumestatsplayer'
 # url = 'https://stats.nba.com/stats/cumestatsplayer?GameIDs=0021700807&LeagueID=00&PlayerID=2544&Season=2019-20&SeasonType=Regular+Season'
@@ -47,6 +49,7 @@ index = []
 for player in data:
     index.append(player[0])
 df = pd.DataFrame.from_records(data, index = index, columns=columns) 
+df = df.query('MIN > 150')
 # df.drop(['PLAYER_ID'], axis = 1)
 # df = pd.DataFrame.from_records(data, columns=columns) 
 # print(df)
@@ -66,11 +69,11 @@ for stat in gameStats:
 print(df)
 
 positions = ['C', 'F', 'G']
-
-bah = open('output.txt', 'w')
-for thing in index:
-    bah.write(str(thing) + "\n")
-# print(df[201143])
+color_map = {
+	'C': 'Red',
+	'F': 'Blue',
+	'G': 'Green',
+}
 
 for pos in positions:
     url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
@@ -82,9 +85,13 @@ for pos in positions:
     # print(pos_df['PLAYER_NAME'])
     for player in pos_df['PLAYER_ID']:
         # print(player)
-        df['POS'][player] = pos
+        df['POS'][player] = color_map[pos]
         # df[player]['POS'] = pos
 
-print(df)
+# bah = open('output.txt', 'w')
+# for thing in index:
+    # bah.write(df.to_string())
 
-    
+
+plot = df.plot.scatter(x = 'BLK', y = 'AST', c = 'POS')
+plt.show() 
