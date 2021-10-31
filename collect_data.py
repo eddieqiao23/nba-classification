@@ -2,8 +2,17 @@ import requests
 import json
 from pprint import pprint
 import pandas as pd
-import matplotlib.pyplot as plt
+from matplotlib import pyplot
 from matplotlib.colors import ListedColormap
+import sklearn.linear_model
+import sklearn.datasets
+import sklearn.preprocessing
+import sklearn.model_selection
+import sklearn.metrics
+from sklearn.linear_model import LogisticRegression
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import plot_confusion_matrix
 
 url_base = 'https://stats.nba.com/stats/cumestatsplayer'
 # url = 'https://stats.nba.com/stats/cumestatsplayer?GameIDs=0021700807&LeagueID=00&PlayerID=2544&Season=2019-20&SeasonType=Regular+Season'
@@ -66,8 +75,6 @@ df['POS'] = 'C'
 for stat in gameStats:
 	df[stat] = df[stat] / df.MIN * 36
 
-print(df)
-
 positions = ['C', 'F', 'G']
 color_map = {
 	'C': 'Red',
@@ -101,8 +108,9 @@ index = []
 for player in data:
     index.append(player[0])
 df_bio = pd.DataFrame.from_records(data, index = index, columns=columns) 
-useful_stats = ['PLAYER_NAME', 'PLAYER_HEIGHT_INCHES', 'PLAYER_WEIGHT']
-df_bio = df_bio[useful_stats]
+name = ['PLAYER_NAME']
+bio_stats = ['PLAYER_HEIGHT_INCHES', 'PLAYER_WEIGHT']
+df_bio = df_bio[name + bio_stats]
 
 df['HEIGHT'] = 0
 df['WEIGHT'] = 0
@@ -111,8 +119,41 @@ for player in index:
 	df['WEIGHT'][player] = df_bio['PLAYER_WEIGHT'][player]
 	
 # bah = open('output.txt', 'w')
-# for thing in index:
+# for thing in index
     # bah.write(df.to_string())
 
 plot = df.plot.scatter(x = 'HEIGHT', y = 'WEIGHT', c = 'POS')
-plt.show() 
+pyplot.show()
+
+dataX = df[gameStats + ['HEIGHT', 'WEIGHT']]
+dataY = df['POS']
+
+trainX, testX, trainY, testY = sklearn.model_selection.train_test_split(
+    dataX, dataY, test_size = 0.2, shuffle = True
+)
+
+classifier = LogisticRegression(max_iter = 10000)
+classifier.fit(trainX, trainY)
+preds = classifier.predict(testX)
+
+
+bah = open('output.txt', 'w')
+bah.write(testY.to_string())
+
+correct = 0
+incorrect = 0
+i = 0
+for pred, gt in zip(preds, testY):
+	if pred == gt: 
+		correct += 1
+	else: 
+		incorrect += 1
+		print(i)
+	i += 1
+		
+
+
+print(f"Correct: {correct}, Incorrect: {incorrect}, % Correct: {correct/(correct + incorrect): 5.2}")
+
+plot_confusion_matrix(classifier, testX, testY)
+pyplot.show()
