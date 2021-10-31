@@ -58,7 +58,7 @@ index = []
 for player in data:
     index.append(player[0])
 df = pd.DataFrame.from_records(data, index = index, columns=columns) 
-df = df.query('MIN > 150')
+df = df.query('MIN > 300')
 # df.drop(['PLAYER_ID'], axis = 1)
 # df = pd.DataFrame.from_records(data, columns=columns) 
 # print(df)
@@ -71,7 +71,7 @@ df = df.query('MIN > 150')
 playerStats = ['PLAYER_NAME','AGE','GP','MIN']
 gameStats = ['FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','REB','AST','TOV','STL','BLK','BLKA','PF','PFD','PTS'];
 df = df[playerStats + gameStats]
-df['POS'] = 'C'
+df['POS'] = 'fill'
 for stat in gameStats:
 	df[stat] = df[stat] / df.MIN * 36
 
@@ -83,18 +83,21 @@ color_map = {
 }
 
 for pos in positions:
-    url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
-    json = requests.get(url, headers=headers).json()
-    data = json['resultSets'][0]['rowSet']
-    columns = json['resultSets'][0]['headers']
-    pos_df = pd.DataFrame.from_records(data, columns=columns) 
-    # print(pos_df)
-    # print(pos_df['PLAYER_NAME'])
-    for player in pos_df['PLAYER_ID']:
-        # print(player)
-        df['POS'][player] = color_map[pos]
-        # df[player]['POS'] = pos
+	url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
+	json = requests.get(url, headers=headers).json()
+	data = json['resultSets'][0]['rowSet']
+	columns = json['resultSets'][0]['headers']
+	pos_df = pd.DataFrame.from_records(data, columns=columns) 
+	
+	for player in pos_df['PLAYER_ID']:
+		if player in df.index:
+			if df['POS'][player] != 'fill':
+				df.drop([player])
+			else:
+				df['POS'][player] = color_map[pos]
+				# df[player]['POS'] = pos
 
+print(df)
 # bah = open('output.txt', 'w')
 # for thing in index:
     # bah.write(df.to_string())
@@ -122,8 +125,8 @@ for player in index:
 # for thing in index
     # bah.write(df.to_string())
 
-plot = df.plot.scatter(x = 'HEIGHT', y = 'WEIGHT', c = 'POS')
-pyplot.show()
+# plot = df.plot.scatter(x = 'HEIGHT', y = 'WEIGHT', c = 'POS')
+# pyplot.show()
 
 dataX = df[gameStats + ['HEIGHT', 'WEIGHT']]
 dataY = df['POS']
