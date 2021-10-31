@@ -92,6 +92,27 @@ for pos in positions:
 # for thing in index:
     # bah.write(df.to_string())
 
+url = 'https://stats.nba.com/stats/leaguedashplayerbiostats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=&LeagueID=00&Location=&Month=&OpponentTeamID=&Outcome=&PORound=&PerMode=Totals&Period=&PlayerExperience=&PlayerPosition=&Season=' + ssn + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=&VsConference=&VsDivision=&Weight='
 
-plot = df.plot.scatter(x = 'BLK', y = 'AST', c = 'POS')
+json = requests.get(url, headers=headers).json()
+data = json['resultSets'][0]['rowSet']
+columns = json['resultSets'][0]['headers']
+index = []
+for player in data:
+    index.append(player[0])
+df_bio = pd.DataFrame.from_records(data, index = index, columns=columns) 
+useful_stats = ['PLAYER_NAME', 'PLAYER_HEIGHT_INCHES', 'PLAYER_WEIGHT']
+df_bio = df_bio[useful_stats]
+
+df['HEIGHT'] = 0
+df['WEIGHT'] = 0
+for player in index:
+	df['HEIGHT'][player] = df_bio['PLAYER_HEIGHT_INCHES'][player]
+	df['WEIGHT'][player] = df_bio['PLAYER_WEIGHT'][player]
+	
+# bah = open('output.txt', 'w')
+# for thing in index:
+    # bah.write(df.to_string())
+
+plot = df.plot.scatter(x = 'HEIGHT', y = 'WEIGHT', c = 'POS')
 plt.show() 
