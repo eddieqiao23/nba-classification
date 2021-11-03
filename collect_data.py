@@ -2,6 +2,7 @@ import requests
 import json
 import pandas as pd
 from matplotlib import pyplot
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import plot_confusion_matrix
@@ -92,9 +93,12 @@ def getBioData(df):
 		df['HEIGHT'][player] = df_bio['PLAYER_HEIGHT_INCHES'][player]
 		df['WEIGHT'][player] = df_bio['PLAYER_WEIGHT'][player]
 	
+def makeGraph(df, xVal, yVal):
+	plot = df.plot.scatter(x = xVal, y = yVal, c = 'COL', s = 'SZ')
+	pyplot.show() 
 
-def getModel(df, gameStats):
-	dataX = df[gameStats + ['HEIGHT', 'WEIGHT']]
+def getModel(df, totalGameStats):
+	dataX = df[totalGameStats]
 	dataY = df['POS']
 
 	trainX, testX, trainY, testY = train_test_split(
@@ -105,9 +109,16 @@ def getModel(df, gameStats):
 	classifier.fit(trainX, trainY)
 	preds = classifier.predict(testX)
 
+	positions = classifier.classes_
+	coefDf = pd.DataFrame(classifier.coef_, index = positions, columns = totalGameStats)
 
-	bah = open('output.txt', 'w')
-	bah.write(testY.to_string())
+	for i, pos in enumerate(positions):
+		coefDf = abs(coefDf)
+		coefDf.sort_values(by = [positions[i]], axis = 1, inplace = True)
+		# print(coefDf.iloc[:, 0])
+		cols = coefDf.columns
+		print("For %s, the weakest indicators are %s, %s, %s" % (pos, cols[0], cols[1], cols[2]))
+		print("The strongest indicators are %s, %s, %s" % (cols[-1], cols[-2], cols[-3]))
 
 	correct = 0
 	incorrect = 0
@@ -120,8 +131,6 @@ def getModel(df, gameStats):
 			print(i)
 		i += 1
 			
-
-
 	print(f"Correct: {correct}, Incorrect: {incorrect}, % Correct: {correct/(correct + incorrect): 5.2}")
 
 	plot_confusion_matrix(classifier, testX, testY)
@@ -130,8 +139,35 @@ def getModel(df, gameStats):
 def main():
 	playerStats = ['PLAYER_NAME','AGE','GP','MIN']
 	gameStats = ['FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','REB','AST','TOV','STL','BLK','BLKA','PF','PFD','PTS'];
+	totalGameStats = gameStats + ['HEIGHT', 'WEIGHT']
+
 	df = filterGameData(playerStats, gameStats)
 	getBioData(df)
-	getModel(df, gameStats)	
+	df['SZ'] = (df['MIN'] - 250) ** (0.75) / 3
+
+	bah = open('output.txt', 'w')
+	bah.write(df.to_string())
+
+	index = df.index
+
+	std_scaler = StandardScaler()
+	df_scaled_game = std_scaler.fit_transform(df[totalGameStats])
+	df_scaled_game = pd.DataFrame(df_scaled_game, index = index, columns = totalGameStats)
+
+	df_scaled = df_scaled_game
+	for stat in playerStats + ['POS']:
+		df_scaled[stat] = 0
+	for player in index:
+		for stat in playerStats + ['POS']:
+			df_scaled[stat][player] = df[stat][player]
+			df_scaled[stat][player] = df[stat][player]
+
+	makeGraph(df, 'REB', 'AST')
+	makeGraph(df, 'HEIGHT', 'WEIGHT')
+	makeGraph(df, 'FGM', "FG3M")
+	makeGraph(df, 'AGE', 'PTS')
+	makeGraph(df, 'STL', 'BLK')
+
+	getModel(df_scaled, totalGameStats)	
 
 main()
