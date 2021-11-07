@@ -7,7 +7,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import plot_confusion_matrix
 
-ssn = '2020-21'
 
 headers = {
 		'Host': 'stats.nba.com',
@@ -29,7 +28,7 @@ parameters = {
 	'SeasonType': 'Regular Season',
 }
 
-def getData(pos = ""):
+def getData(pos, ssn):
 	url = 'https://stats.nba.com/stats/leaguedashplayerstats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=0&LeagueID=00&Location=&MeasureType=Base&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=Totals&Period=0&PlayerExperience=&PlayerPosition=' + str(pos) + '&PlusMinus=N&Rank=N&Season=' + str(ssn) + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=&Weight='
 
 	json = requests.get(url, headers=headers).json()
@@ -43,8 +42,8 @@ def getData(pos = ""):
 	return df
 
 
-def filterGameData(playerStats, gameStats):
-	df = getData()
+def filterGameData(playerStats, gameStats, ssn):
+	df = getData("", ssn)
 	df = df.query('MIN > 300')
 
 	df = df[playerStats + gameStats]
@@ -61,19 +60,23 @@ def filterGameData(playerStats, gameStats):
 	}
 
 	for pos in positions:
-		pos_df = getData(pos)
-		for player in pos_df['PLAYER_ID']:
-			if player in df.index:
-				if df['POS'][player] != 'fill':
-					df.drop([player])
-				else:
-					df['POS'][player] = pos
-					df['COL'][player] = color_map[pos]
+		pos_df = getData(pos, ssn)
+		for player in df.index.intersection(pos_df.index):
+			# df['POS'][player] = pos
+			# df['COL'][player] = color_map[pos]
+			df.at[player, 'POS'] = pos
+			df.at[player, 'COL'] = color_map[pos]
+			# if player in df.index:
+				# if df['POS'][player] != 'fill':
+					# df.drop([player])
+				# else:
+					# df['POS'][player] = pos
+					# df['COL'][player] = color_map[pos]
 
-	print(df)
+	# print(df)
 	return df
 
-def getBioData(df):
+def getBioData(df, ssn):
 	url = 'https://stats.nba.com/stats/leaguedashplayerbiostats?College=&Conference=&Country=&DateFrom=&DateTo=&Division=&DraftPick=&DraftYear=&GameScope=&GameSegment=&Height=&LastNGames=&LeagueID=00&Location=&Month=&OpponentTeamID=&Outcome=&PORound=&PerMode=Totals&Period=&PlayerExperience=&PlayerPosition=&Season=' + ssn + '&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=&VsConference=&VsDivision=&Weight='
 
 	json = requests.get(url, headers=headers).json()
@@ -89,9 +92,16 @@ def getBioData(df):
 
 	df['HEIGHT'] = 0
 	df['WEIGHT'] = 0
-	for player in index:
-		df['HEIGHT'][player] = df_bio['PLAYER_HEIGHT_INCHES'][player]
-		df['WEIGHT'][player] = df_bio['PLAYER_WEIGHT'][player]
+
+	df_bio = df_bio.loc[list(df.index)]
+	df['HEIGHT'] = df_bio['PLAYER_HEIGHT_INCHES']
+	df['WEIGHT'] = df_bio['PLAYER_WEIGHT']
+
+	# bah.write(df.to_string())
+
+	# for player in index:
+		# df['HEIGHT'] = df_bio['PLAYER_HEIGHT_INCHES']
+		# df['HEIGHT'][player] = df_bio['PLAYER_HEIGHT_INCHES'][player]
 	
 def makeGraph(df, xVal, yVal):
 	plot = df.plot.scatter(x = xVal, y = yVal, c = 'COL', s = 'SZ')
@@ -117,8 +127,8 @@ def getModel(df, totalGameStats):
 		coefDf.sort_values(by = [positions[i]], axis = 1, inplace = True)
 		# print(coefDf.iloc[:, 0])
 		cols = coefDf.columns
-		print("For %s, the weakest indicators are %s, %s, %s" % (pos, cols[0], cols[1], cols[2]))
-		print("The strongest indicators are %s, %s, %s" % (cols[-1], cols[-2], cols[-3]))
+		# print("For %s, the weakest indicators are %s, %s, %s" % (pos, cols[0], cols[1], cols[2]))
+		# print("The strongest indicators are %s, %s, %s" % (cols[-1], cols[-2], cols[-3]))
 
 	correct = 0
 	incorrect = 0
@@ -128,21 +138,22 @@ def getModel(df, totalGameStats):
 			correct += 1
 		else: 
 			incorrect += 1
-			print(i)
+			# print(i)
 		i += 1
 			
 	print(f"Correct: {correct}, Incorrect: {incorrect}, % Correct: {correct/(correct + incorrect): 5.2}")
 
-	plot_confusion_matrix(classifier, testX, testY)
+	# plot_confusion_matrix(classifier, testX, testY)
 	pyplot.show()
 
-def main():
+def solve(ssn):
 	playerStats = ['PLAYER_NAME','AGE','GP','MIN']
 	gameStats = ['FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','REB','AST','TOV','STL','BLK','BLKA','PF','PFD','PTS'];
+	# gameStats = ['FG3M', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK']
 	totalGameStats = gameStats + ['HEIGHT', 'WEIGHT']
 
-	df = filterGameData(playerStats, gameStats)
-	getBioData(df)
+	df = filterGameData(playerStats, gameStats, ssn)
+	getBioData(df, ssn)
 	df['SZ'] = (df['MIN'] - 250) ** (0.75) / 3
 
 	bah = open('output.txt', 'w')
@@ -159,15 +170,57 @@ def main():
 		df_scaled[stat] = 0
 	for player in index:
 		for stat in playerStats + ['POS']:
-			df_scaled[stat][player] = df[stat][player]
-			df_scaled[stat][player] = df[stat][player]
+			df_scaled[stat] = df[stat]
+			# df_scaled[stat][player] = df[stat][player]
+			# df_scaled[stat][player] = df[stat][player]
 
-	makeGraph(df, 'REB', 'AST')
-	makeGraph(df, 'HEIGHT', 'WEIGHT')
-	makeGraph(df, 'FGM', "FG3M")
-	makeGraph(df, 'AGE', 'PTS')
-	makeGraph(df, 'STL', 'BLK')
+	# makeGraph(df, 'REB', 'AST')
+	# makeGraph(df, 'HEIGHT', 'WEIGHT')
+	# makeGraph(df, 'FGM', "FG3M")
+	# makeGraph(df, 'AGE', 'PTS')
+	# makeGraph(df, 'STL', 'BLK')
 
 	getModel(df_scaled, totalGameStats)	
+
+def main():
+	ssn = '2020-21'
+	seasons = ['2004-05', '2009-10', '2014-15', '2019-20']
+	for ssn in seasons:
+		solve(ssn)
+
+	# playerStats = ['PLAYER_NAME','AGE','GP','MIN']
+	# gameStats = ['FGM','FGA','FG3M','FG3A','FTM','FTA','OREB','DREB','REB','AST','TOV','STL','BLK','BLKA','PF','PFD','PTS'];
+	# # gameStats = ['FG3M', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK']
+	# totalGameStats = gameStats + ['HEIGHT', 'WEIGHT']
+
+	# df = filterGameData(playerStats, gameStats)
+	# getBioData(df)
+	# df['SZ'] = (df['MIN'] - 250) ** (0.75) / 3
+
+	# bah = open('output.txt', 'w')
+	# bah.write(df.to_string())
+
+	# index = df.index
+
+	# std_scaler = StandardScaler()
+	# df_scaled_game = std_scaler.fit_transform(df[totalGameStats])
+	# df_scaled_game = pd.DataFrame(df_scaled_game, index = index, columns = totalGameStats)
+
+	# df_scaled = df_scaled_game
+	# for stat in playerStats + ['POS']:
+	# 	df_scaled[stat] = 0
+	# for player in index:
+	# 	for stat in playerStats + ['POS']:
+	# 		df_scaled[stat] = df[stat]
+	# 		# df_scaled[stat][player] = df[stat][player]
+	# 		# df_scaled[stat][player] = df[stat][player]
+
+	# # makeGraph(df, 'REB', 'AST')
+	# # makeGraph(df, 'HEIGHT', 'WEIGHT')
+	# # makeGraph(df, 'FGM', "FG3M")
+	# # makeGraph(df, 'AGE', 'PTS')
+	# # makeGraph(df, 'STL', 'BLK')
+
+	# getModel(df_scaled, totalGameStats)	
 
 main()
