@@ -81,12 +81,19 @@ def filterGameData(playerStats, gameStats, ssn):
 		'G': 'Green',
 	}
 
+	df['POS'] = 'filler'
 	for pos in positions:
 		# pos_df.index has all the players who played a certain position
 		pos_df = getData(pos, ssn)
 		for player in df.index.intersection(pos_df.index):
-			df.at[player, 'POS'] = pos
-			df.at[player, 'COL'] = color_map[pos]
+			if df.at[player, 'POS'] != 'filler':
+				choice = randrange(2)
+				if choice == 0:
+					df.at[player, 'POS'] = pos
+					df.at[player, 'COL'] = color_map[pos]
+			else:
+				df.at[player, 'POS'] = pos
+				df.at[player, 'COL'] = color_map[pos]
 
 	return df
 	
