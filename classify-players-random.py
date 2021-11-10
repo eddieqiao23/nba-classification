@@ -1,16 +1,15 @@
-from matplotlib.colors import ListedColormap
 import requests
 import pandas as pd
 import numpy as np
+from random import randrange
 from matplotlib import pyplot
+import matplotlib.patches as mpatches
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import plot_confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
-import matplotlib.patches as mpatches
-from random import randrange
-
+from sklearn import svm
 
 headers = {
 		'Host': 'stats.nba.com',
@@ -48,20 +47,20 @@ def getBioData(df, ssn):
 	ids = []
 	for player in data:
 		ids.append(player[0])
-	df_bio = pd.DataFrame.from_records(data, index = ids, columns = columns) 
+	dfBio = pd.DataFrame.from_records(data, index = ids, columns = columns) 
 
 	# Takes the height and weight columns from the data and puts them into df_bio
 	name = ['PLAYER_NAME']
-	bio_stats = ['PLAYER_HEIGHT_INCHES', 'PLAYER_WEIGHT']
-	df_bio = df_bio[name + bio_stats]
+	bioStats = ['PLAYER_HEIGHT_INCHES', 'PLAYER_WEIGHT']
+	dfBio = dfBio[name + bioStats]
 
 	# Gets rid of the players who are not in df (since some played <300 minutes)
-	df_bio = df_bio.loc[list(df.index)]
+	dfBio = dfBio.loc[list(df.index)]
 	# For some reason, the player's weight is an object instead of an int
-	df_bio['PLAYER_WEIGHT'] = df_bio['PLAYER_WEIGHT'].astype(np.int64)
+	dfBio['PLAYER_WEIGHT'] = dfBio['PLAYER_WEIGHT'].astype(np.int64)
 	# Puts the data into df
-	df['HEIGHT'] = df_bio['PLAYER_HEIGHT_INCHES']
-	df['WEIGHT'] = df_bio['PLAYER_WEIGHT']
+	df['HEIGHT'] = dfBio['PLAYER_HEIGHT_INCHES']
+	df['WEIGHT'] = dfBio['PLAYER_WEIGHT']
 
 def filterGameData(playerStats, gameStats, ssn):
 	# Filters the data to be only players who played 300 minutes or more 
@@ -87,6 +86,8 @@ def filterGameData(playerStats, gameStats, ssn):
 		pos_df = getData(pos, ssn)
 		for player in df.index.intersection(pos_df.index):
 			if df.at[player, 'POS'] != 'filler':
+				# If the player already has a position
+				# It randomly chooses whether to keep the old position or replace it with the new one
 				choice = randrange(2)
 				if choice == 0:
 					df.at[player, 'POS'] = pos
@@ -101,10 +102,10 @@ def makeGraph(df, xVal, yVal):
 	# Makes a graph of the data
 	plot = df.plot.scatter(x = xVal, y = yVal, c = 'COL', s = 'SZ')
 	# Makes legend
-	center_label = mpatches.Patch(color = 'red', label = 'Center')
-	forward_label = mpatches.Patch(color = 'blue', label = 'Forward')
-	guard_label = mpatches.Patch(color = 'green', label = 'Guard')
-	pyplot.legend(handles = [center_label, forward_label, guard_label])
+	centerLabel = mpatches.Patch(color = 'red', label = 'Center')
+	forwardLabel = mpatches.Patch(color = 'blue', label = 'Forward')
+	guardLabel = mpatches.Patch(color = 'green', label = 'Guard')
+	pyplot.legend(handles = [centerLabel, forwardLabel, guardLabel])
 	pyplot.show() 
 
 def getModel(df, totalGameStats):
@@ -137,8 +138,12 @@ def getModel(df, totalGameStats):
 	classifierRandom.fit(trainX, trainY)
 	predsRandom = classifierRandom.predict(testX)
 
+	classifierSVM = svm.SVC()
+	classifierSVM.fit(trainX, trainY)
+	predsSVM = classifierSVM.predict(testX)
+
 	# Finds the amount that are correct and wrong
-	for i, preds in enumerate([predsLog, predsRandom]):
+	for i, preds in enumerate([predsLog, predsRandom, predsSVM]):
 		correct = 0
 		incorrect = 0
 		for pred, gt in zip(preds, testY):
@@ -150,12 +155,15 @@ def getModel(df, totalGameStats):
 		# Outputs the results
 		if i == 0: 
 			print("\nResults for a Logistic Regression:")
-		else:
+		elif i == 1:
 			print("\nResults for a Random Forest Classifier:")
+		else:
+			print("\nResults for a Support Vector Machine:")
 
 		print(f"Correct: {correct}, Incorrect: {incorrect}, % Correct: {correct/(correct + incorrect): 5.2}")
-		plot_confusion_matrix(classifierLog, testX, testY)
-		pyplot.show()
+
+	plot_confusion_matrix(classifierLog, testX, testY)
+	pyplot.show()
 
 def main():
 	ssn = '2020-21'
@@ -173,15 +181,15 @@ def main():
 
 	# Scales the data 
 	std_scaler = StandardScaler()
-	df_scaled_game = std_scaler.fit_transform(df[totalGameStats])
-	df_scaled_game = pd.DataFrame(df_scaled_game, index = index, columns = totalGameStats)
+	dfScaledGame = std_scaler.fit_transform(df[totalGameStats])
+	dfScaledGame = pd.DataFrame(dfScaledGame, index = index, columns = totalGameStats)
 
-	df_scaled = df_scaled_game
+	dfScaled = dfScaledGame
 	for stat in playerStats + ['POS']:
-		df_scaled[stat] = 0
+		dfScaled[stat] = 0
 	for player in index:
 		for stat in playerStats + ['POS']:
-			df_scaled[stat] = df[stat]
+			dfScaled[stat] = df[stat]
 
 	# Makes a bunch of graphs
 	makeGraph(df, 'REB', 'AST')
@@ -190,6 +198,6 @@ def main():
 	makeGraph(df, 'STL', 'BLK')
 	makeGraph(df, 'AGE', 'PTS') # A graph that tells you nothing
 
-	getModel(df_scaled, totalGameStats)	
+	getModel(dfScaled, totalGameStats)	
 
 main()
