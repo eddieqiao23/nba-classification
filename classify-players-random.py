@@ -131,14 +131,13 @@ def getModel(df, totalGameStats):
 		coefDf = abs(coefDf)
 		coefDf.sort_values(by = [positions[i]], axis = 1, inplace = True)
 		cols = coefDf.columns
-		print("For %s, the weakest indicators are %s, %s, %s" % (pos, cols[0], cols[1], cols[2]))
-		print("The strongest indicators are %s, %s, %s" % (cols[-1], cols[-2], cols[-3]))
+		print("For %s, The strongest indicators are %s, %s, %s" % (pos, cols[-1], cols[-2], cols[-3]))
 
 	classifierRandom = RandomForestClassifier(n_estimators = 100)
 	classifierRandom.fit(trainX, trainY)
 	predsRandom = classifierRandom.predict(testX)
 
-	classifierSVM = svm.SVC()
+	classifierSVM = svm.SVC(kernel = "linear")
 	classifierSVM.fit(trainX, trainY)
 	predsSVM = classifierSVM.predict(testX)
 
